@@ -1,31 +1,36 @@
 // backend/firebaseAdmin.js
 import admin from "firebase-admin";
-import fs from "fs";
-import path from "path";
 
 const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
 
 if (!base64) {
-  throw new Error("❌ FIREBASE_SERVICE_ACCOUNT_BASE64 not found in ENV!");
+  throw new Error("❌ FIREBASE_SERVICE_ACCOUNT_BASE64 is missing!");
 }
 
-const jsonString = Buffer.from(base64, "base64").toString("utf8");
-
-// Temporary file path at runtime
-const tempPath = path.join(process.cwd(), "serviceAccount.json");
-
-// Write the file if not exists
-if (!fs.existsSync(tempPath)) {
-  fs.writeFileSync(tempPath, jsonString);
+// 1) Decode Base64 → string
+let decodedJson;
+try {
+  decodedJson = Buffer.from(base64, "base64").toString("utf8");
+} catch (e) {
+  console.error("❌ Base64 decode failed:", e);
+  throw e;
 }
 
-const serviceAccount = JSON.parse(fs.readFileSync(tempPath));
+// 2) Parse JSON
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(decodedJson);
+} catch (e) {
+  console.error("❌ JSON parse failed. The Base64 string is not valid JSON:", e);
+  throw e;
+}
 
+// 3) Initialize Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
-  console.log("🔥 Firebase Admin initialized!");
+  console.log("🔥 Firebase Admin initialized (Render)!");
 }
 
 export const db = admin.firestore();
